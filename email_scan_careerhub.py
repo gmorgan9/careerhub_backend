@@ -18,27 +18,24 @@ def get_message_html(msg, message_id):
     for part in msg.walk():
         if part.get_content_type() == 'text/html':
             payload = part.get_payload(decode=True)
-            detected_encoding = chardet.detect(payload)['encoding']
-
+            
             # Define a list of encodings to try
-            encodings_to_try = [detected_encoding, 'utf-8', 'ISO-8859-1', 'Windows-1254']
+            encodings_to_try = ['Windows-1254', 'utf-8', 'ISO-8859-1']
             html_body = None
-
+            
+            # Try decoding with each encoding in the list
             for encoding in encodings_to_try:
                 try:
-                    if encoding:
-                        html_body = payload.decode(encoding)
-                    else:
-                        html_body = payload.decode('utf-8')
+                    html_body = payload.decode(encoding)
                     break  # Exit loop if decoding is successful
                 except (UnicodeDecodeError, TypeError) as e:
                     print(f"Encoding error with encoding '{encoding}': {e}")
-                    # Log problematic email if necessary
-                    # log_problematic_email(payload, encoding)
+                    # Continue to the next encoding
 
+            # If all specified encodings fail, use 'utf-8' with replacement characters
             if html_body is None:
-                # As a last resort, default to utf-8 with replacement
                 html_body = payload.decode('utf-8', errors='replace')
+                print("Using 'utf-8' with replacement characters for decoding.")
 
             return {
                 'subject': msg['subject'],
