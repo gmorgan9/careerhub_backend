@@ -14,8 +14,6 @@ load_dotenv()
 
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
 
-import chardet
-
 def get_message_html(msg, message_id):
     for part in msg.walk():
         if part.get_content_type() == 'text/html':
@@ -23,6 +21,7 @@ def get_message_html(msg, message_id):
 
             # Detect encoding using chardet
             detected_encoding = chardet.detect(payload).get('encoding', 'utf-8')
+            print(f"Detected encoding: {detected_encoding}")
 
             try:
                 # Attempt to decode using the detected encoding
@@ -30,6 +29,7 @@ def get_message_html(msg, message_id):
             except (UnicodeDecodeError, TypeError) as e:
                 # If decoding fails, fallback to 'utf-8' with 'replace' strategy
                 print(f"Encoding error with detected encoding '{detected_encoding}': {e}")
+                print(f"Payload sample (first 1000 bytes): {payload[:1000]}")
                 html_body = payload.decode('utf-8', errors='replace')
                 print("Fallback to 'utf-8' with replacement characters for decoding.")
 
@@ -39,7 +39,6 @@ def get_message_html(msg, message_id):
                 'html_body': html_body,
                 'message_id': message_id,
             }
-
 
 
 def extract_job_details_from_html(html_body):
