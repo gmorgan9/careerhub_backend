@@ -15,18 +15,22 @@ load_dotenv()
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
 
 
-def get_message_html(msg, message_id):
+def get_message_html(msg):
+    # Extract Message-ID
+    message_id = msg.get('Message-ID', '')
+    
     for part in msg.walk():
         if part.get_content_type() == 'text/html':
             payload = part.get_payload(decode=True)
             encoding = chardet.detect(payload)['encoding']
             html_body = payload.decode(encoding)
             return {
-                'subject': msg['subject'],
-                'from': msg['from'],
+                'subject': msg.get('subject', ''),
+                'from': msg.get('from', ''),
                 'html_body': html_body,
                 'message_id': message_id,
             }
+    return None
 
 def extract_job_details_from_html(html_body):
     soup = BeautifulSoup(html_body, 'html.parser')
@@ -241,24 +245,24 @@ def main():
         status, data = mail.fetch(num, '(BODY.PEEK[])')
         raw_email = data[0][1]
         msg = email.message_from_bytes(raw_email)
-        details = get_message_html(msg, num.decode())
-        
-        # Print the message ID and subject
-        print(f"Checking email ID: {num.decode()}")
-        print(f"Subject: {details['subject']}")
+        details = get_message_html(msg)
         
         if details:
+            # Print the message ID and subject
+            print(f"Checking email ID: {details['message_id']}")
+            print(f"Subject: {details['subject']}")
+            
             emails_checked += 1
             subject = details['subject']
             from_email = details['from']
             html_body = details['html_body']
-            message_id = num.decode()  # Use the numeric ID for IMAP commands
+            message_id = details['message_id']  # Use the message ID returned from the function
             if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
                 job_details = extract_job_details_from_html(html_body)
                 if insert_job_details(job_details, message_id):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-                    message_ids.append(message_id)  # Add the numeric message ID for later moving
+                    message_ids.append(message_id)  # Add the message ID for later moving
     
     for message_id in message_ids:
         move_email_to_folder(mail, message_id, "Job Applications")
@@ -268,4 +272,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
