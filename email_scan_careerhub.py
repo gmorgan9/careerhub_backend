@@ -14,7 +14,11 @@ load_dotenv()
 
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
 
-def get_message_html(msg, message_id):
+def get_message_html(msg, email_id):
+    message_id = msg.get('Message-ID')  # Extract the Message-ID from email headers
+    if message_id is None:
+        message_id = email_id  # Fallback to the IMAP ID if Message-ID is not found
+
     for part in msg.walk():
         if part.get_content_type() == 'text/html':
             payload = part.get_payload(decode=True)
@@ -26,6 +30,8 @@ def get_message_html(msg, message_id):
                 'html_body': html_body,
                 'message_id': message_id,
             }
+    return None
+
 
 def extract_job_details_from_html(html_body):
     soup = BeautifulSoup(html_body, 'html.parser')
@@ -184,9 +190,6 @@ def move_email(mail, email_id, folder_name):
     status, folders = mail.list()
     folder_names = [folder.decode().split(' "/" ')[-1].strip() for folder in folders]
     
-    # Print available folders for debugging
-    # print("Available folders:", folder_names)
-    
     # Add quotes around the folder name to match the listing format
     quoted_folder_name = f'"{folder_name}"'
 
@@ -202,6 +205,7 @@ def move_email(mail, email_id, folder_name):
     
     # Expunge the deleted emails
     mail.expunge()
+
 
 
 def main():
