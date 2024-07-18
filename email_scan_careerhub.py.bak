@@ -14,7 +14,6 @@ load_dotenv()
 
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
 
-
 def get_message_html(msg, message_id):
     for part in msg.walk():
         if part.get_content_type() == 'text/html':
@@ -212,10 +211,6 @@ def main():
                 if insert_job_details(job_details, message_id):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-                    # Move the email to "Job Applications" folder
-                    mail.copy(num, "Job Applications")
-                    mail.store(num, '+FLAGS', '\\Deleted')
-    mail.expunge()  # Permanently remove emails marked for deletion
     mail.logout()
     send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
 
