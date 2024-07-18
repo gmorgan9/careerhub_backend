@@ -227,6 +227,11 @@ def main():
         raw_email = data[0][1]
         msg = email.message_from_bytes(raw_email)
         details = get_message_html(msg, num.decode())
+        
+        # Print the message ID and subject
+        print(f"Checking email ID: {num.decode()}")
+        print(f"Subject: {details['subject']}")
+        
         if details:
             emails_checked += 1
             subject = details['subject']
@@ -248,3 +253,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
