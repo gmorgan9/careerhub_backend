@@ -251,7 +251,7 @@ def main():
     emails_inserted = 0
     inserted_jobs = []
     
-    message_ids = []  # List to hold numeric message IDs for moving after checking
+    message_ids = set()  # Use a set to ensure unique message IDs
 
     for num in id_list:
         status, data = mail.fetch(num, '(BODY.PEEK[])')
@@ -267,10 +267,10 @@ def main():
             message_id = details['message_id']
             
             # Print the message ID and subject for debugging
-            # print(f"Checking email ID: {num.decode()}")
-            # print(f"Subject: {subject}")
-            # print(f"From: {from_email}")
-            # print(f"Message-ID: {message_id}")
+            print(f"Checking email ID: {num.decode()}")
+            print(f"Subject: {subject}")
+            print(f"From: {from_email}")
+            print(f"Message-ID: {message_id}")
 
             if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
                 print(f"Email matches criteria. Inserting job details...")
@@ -278,40 +278,17 @@ def main():
                 if insert_job_details(job_details, message_id):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-                    message_ids.append(message_id)  # Add the message ID for later moving
+                    message_ids.add(message_id)  # Add the message ID for later moving
                     print(f"Job inserted and message ID added: {message_id}")
     
     # Print the message IDs before moving
     print("\nMessage IDs to move:")
-    for num in id_list:
-        status, data = mail.fetch(num, '(BODY.PEEK[])')
-        raw_email = data[0][1]
-        msg = email.message_from_bytes(raw_email)
-        details = get_message_html(msg)
-        
-        if details:
-            subject = details['subject']
-            from_email = details['from']
-            if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
-                print(f"Email ID: {message_id}")
-
+    for message_id in message_ids:
+        print(message_id)
+    
     # Move the emails to the "Job Applications" folder
     for message_id in message_ids:
         move_email_to_folder(mail, message_id, "Job Applications")
-
-    # Print all matching emails for verification
-    # print("\nFinal List of Matching Emails:")
-    # for num in id_list:
-    #     status, data = mail.fetch(num, '(BODY.PEEK[])')
-    #     raw_email = data[0][1]
-    #     msg = email.message_from_bytes(raw_email)
-    #     details = get_message_html(msg)
-        
-    #     if details:
-    #         subject = details['subject']
-    #         from_email = details['from']
-    #         if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
-    #             print(f"Email ID: {message_id} - Subject: {subject} - From: {from_email}")
 
     mail.logout()
     send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
