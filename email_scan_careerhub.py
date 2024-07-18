@@ -288,8 +288,7 @@ def main():
         raw_email = data[0][1]
         msg = email.message_from_bytes(raw_email)
         details = get_message_html(msg)
-        print(message_id)
-
+        
         if details:
             subject = details['subject']
             from_email = details['from']
