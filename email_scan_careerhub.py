@@ -247,8 +247,8 @@ def main():
         
         if details:
             # Print the message ID and subject
-            print(f"Checking email ID: {num.decode()}")
-            print(f"Subject: {details['subject']}")
+            # print(f"Checking email ID: {num.decode()}")
+            # print(f"Subject: {details['subject']}")
             
             emails_checked += 1
             subject = details['subject']
@@ -262,6 +262,11 @@ def main():
                     inserted_jobs.append(job_details)
                     message_ids.append(num.decode())  # Use numeric ID for later moving
     
+    # Print the message IDs before moving
+    print("Message IDs to move:")
+    for message_id in message_ids:
+        print(message_id)
+
     for message_id in message_ids:
         move_email_to_folder(mail, message_id, "Job Applications")
 
