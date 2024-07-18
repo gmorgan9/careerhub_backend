@@ -219,7 +219,7 @@ def main():
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
                     # Move the email to "Job Applications" folder
-                    result = mail.copy(num, '"Job Applications"')
+                    result = mail.copy(num, 'Job Applications')
                     if result[0] == 'OK':
                         mail.store(num, '+FLAGS', '\\Deleted')
     mail.expunge()  # Permanently remove emails marked for deletion
