@@ -185,19 +185,34 @@ def move_email_to_folder(mail, message_id, destination_folder):
     mail.select('inbox')
     
     # Ensure the destination folder exists
-    mail.create(destination_folder)
+    try:
+        # Check if the folder exists
+        status, folders = mail.list()
+        folder_exists = any(folder.decode().endswith(destination_folder) for folder in folders)
+        
+        if not folder_exists:
+            # Create the folder if it does not exist
+            result = mail.create(destination_folder)
+            if result[0] != 'OK':
+                print(f"Failed to create folder '{destination_folder}': {result}")
+                return
+        else:
+            print(f"Folder '{destination_folder}' already exists.")
+
+        # Copy the email to the destination folder
+        result = mail.copy(message_id, destination_folder)
+        
+        if result[0] == 'OK':
+            # Mark the original email for deletion
+            mail.store(message_id, '+FLAGS', '\\Deleted')
+            mail.expunge()
+            print(f"Email {message_id} moved to {destination_folder}")
+        else:
+            print(f"Failed to move email {message_id} to {destination_folder}: {result}")
     
-    # Copy the email to the destination folder
-    result = mail.copy(message_id, destination_folder)
-    
-    # Check if the copy operation was successful
-    if result[0] == 'OK':
-        # Mark the original email for deletion
-        mail.store(message_id, '+FLAGS', '\\Deleted')
-        mail.expunge()
-        print(f"Email {message_id} moved to {destination_folder}")
-    else:
-        print(f"Failed to move email {message_id} to {destination_folder}: {result}")
+    except Exception as e:
+        print(f"An error occurred while moving email {message_id}: {str(e)}")
+
 
 
 def main():
