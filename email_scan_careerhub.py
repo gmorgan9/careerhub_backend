@@ -184,7 +184,7 @@ def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
     if response.status_code != 200:
         print(f"Failed to send Slack summary: {response.text}")
 
-def move_email_to_folder(mail, message_id, destination_folder):
+def move_email_to_folder(mail, num, destination_folder):
     # Select the folder to move the email from
     mail.select('inbox')
     
@@ -203,21 +203,19 @@ def move_email_to_folder(mail, message_id, destination_folder):
         else:
             print(f"Folder '{destination_folder}' already exists.")
 
-        # Copy the email to the destination folder
-        result = mail.copy(message_id, destination_folder)
+        # Copy the email to the destination folder using numeric ID
+        result = mail.copy(num, destination_folder)
         
         if result[0] == 'OK':
             # Mark the original email for deletion
-            mail.store(message_id, '+FLAGS', '\\Deleted')
+            mail.store(num, '+FLAGS', '\\Deleted')
             mail.expunge()
-            print(f"Email {message_id} moved to {destination_folder}")
+            print(f"Email {num} moved to {destination_folder}")
         else:
-            print(f"Failed to move email {message_id} to {destination_folder}: {result}")
+            print(f"Failed to move email {num} to {destination_folder}: {result}")
     
     except Exception as e:
-        print(f"An error occurred while moving email {message_id}: {str(e)}")
-
-
+        print(f"An error occurred while moving email {num}: {str(e)}")
 
 def main():
     load_dotenv()
@@ -249,7 +247,7 @@ def main():
         
         if details:
             # Print the message ID and subject
-            print(f"Checking email ID: {details['message_id']}")
+            print(f"Checking email ID: {num.decode()}")
             print(f"Subject: {details['subject']}")
             
             emails_checked += 1
@@ -262,7 +260,7 @@ def main():
                 if insert_job_details(job_details, message_id):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-                    message_ids.append(message_id)  # Add the message ID for later moving
+                    message_ids.append(num.decode())  # Use numeric ID for later moving
     
     for message_id in message_ids:
         move_email_to_folder(mail, message_id, "Job Applications")
