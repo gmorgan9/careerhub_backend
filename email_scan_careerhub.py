@@ -189,7 +189,6 @@ def move_email_to_folder(mail, message_id, destination_folder):
     else:
         print(f"Failed to move email {message_id}")
 
-
 def main():
     load_dotenv()
     email_user = os.getenv('EMAIL_USER')
@@ -222,7 +221,24 @@ def main():
                 if insert_job_details(job_details, message_id):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-                    move_email_to_folder(mail, num.decode(), "Job Applications")
+    for num in id_list:
+        status, data = mail.fetch(num, '(BODY.PEEK[])')
+        raw_email = data[0][1]
+        msg = email.message_from_bytes(raw_email)
+        details = get_message_html(msg, num.decode())
+        if details:
+            message_id = details['message_id']
+            with pymysql.connect(
+                host=os.getenv('DB_HOST'),
+                user=os.getenv('DB_USER'),
+                password=os.getenv('DB_PASS'),
+                db=os.getenv('DB_NAME'),
+                charset='utf8mb4',
+                cursorclass=pymysql.cursors.DictCursor
+            ) as connection:
+                with connection.cursor() as cursor:
+                    if job_exists(cursor, message_id):
+                        move_email_to_folder(mail, num.decode(), "Job Applications")
     mail.logout()
     send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
 
