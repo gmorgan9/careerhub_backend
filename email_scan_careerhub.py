@@ -181,7 +181,10 @@ def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
         print(f"Failed to send Slack summary: {response.text}")
 
 def move_email_to_folder(mail, message_id, destination_folder):
-    # Ensure folder exists or create it
+    # Select the folder to move the email from
+    mail.select('inbox')
+    
+    # Ensure the destination folder exists
     mail.create(destination_folder)
     
     # Copy the email to the destination folder
@@ -196,6 +199,7 @@ def move_email_to_folder(mail, message_id, destination_folder):
     else:
         print(f"Failed to move email {message_id} to {destination_folder}: {result}")
 
+
 def main():
     load_dotenv()
     email_user = os.getenv('EMAIL_USER')
@@ -203,9 +207,11 @@ def main():
     mail = imaplib.IMAP4_SSL('imap.gmail.com')
     mail.login(email_user, email_pass)
     mail.select('inbox')
+    
     status, data = mail.search(None, 'ALL')
     mail_ids = data[0]
     id_list = mail_ids.split()
+    
     if not id_list:
         print('No new messages.')
         return
@@ -226,13 +232,13 @@ def main():
             subject = details['subject']
             from_email = details['from']
             html_body = details['html_body']
-            message_id = details['message_id']
+            message_id = num.decode()  # Use the numeric ID for IMAP commands
             if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
                 job_details = extract_job_details_from_html(html_body)
                 if insert_job_details(job_details, message_id):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-                    message_ids.append(num.decode())  # Add the message ID for later moving
+                    message_ids.append(message_id)  # Add the numeric message ID for later moving
     
     for message_id in message_ids:
         move_email_to_folder(mail, message_id, "Job Applications")
