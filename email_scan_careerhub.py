@@ -184,10 +184,10 @@ def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
     if response.status_code != 200:
         print(f"Failed to send Slack summary: {response.text}")
 
-def move_email_to_folder(mail, num, destination_folder):
+def move_email_to_folder(mail, message_id, destination_folder):
     # Select the folder to move the email from
     mail.select('inbox')
-    
+
     # Ensure the destination folder exists
     try:
         # Check if the folder exists
@@ -202,20 +202,33 @@ def move_email_to_folder(mail, num, destination_folder):
                 return
         else:
             print(f"Folder '{destination_folder}' already exists.")
-
-        # Copy the email to the destination folder using numeric ID
-        result = mail.copy(num, destination_folder)
         
-        if result[0] == 'OK':
-            # Mark the original email for deletion
-            mail.store(num, '+FLAGS', '\\Deleted')
-            mail.expunge()
-            print(f"Email {num} moved to {destination_folder}")
-        else:
-            print(f"Failed to move email {num} to {destination_folder}: {result}")
+        # Search for the email using the message_id
+        status, data = mail.search(None, f'(HEADER Message-ID "{message_id}")')
+        if status != 'OK':
+            print(f"Failed to search for email with Message-ID {message_id}")
+            return
+        
+        email_ids = data[0].split()
+        if not email_ids:
+            print(f"No email found with Message-ID {message_id}")
+            return
+        
+        # Move the email to the destination folder using numeric ID
+        for email_id in email_ids:
+            result = mail.copy(email_id, destination_folder)
+            
+            if result[0] == 'OK':
+                # Mark the original email for deletion
+                mail.store(email_id, '+FLAGS', '\\Deleted')
+                mail.expunge()
+                print(f"Email {email_id.decode()} moved to {destination_folder}")
+            else:
+                print(f"Failed to move email {email_id.decode()} to {destination_folder}: {result}")
     
     except Exception as e:
-        print(f"An error occurred while moving email {num}: {str(e)}")
+        print(f"An error occurred while moving email with Message-ID {message_id}: {str(e)}")
+
 
 def main():
     load_dotenv()
@@ -267,26 +280,27 @@ def main():
                     message_ids.append(num.decode())  # Add numeric ID for moving
     
     # Print the message IDs before moving
-    print("Message IDs to move:")
+    print("\nMessage IDs to move:")
     for message_id in message_ids:
         print(message_id)
 
+    # Move the emails to the "Job Applications" folder
     for message_id in message_ids:
         move_email_to_folder(mail, message_id, "Job Applications")
 
     # Print all matching emails for verification
-    print("\nFinal List of Matching Emails:")
-    for num in id_list:
-        status, data = mail.fetch(num, '(BODY.PEEK[])')
-        raw_email = data[0][1]
-        msg = email.message_from_bytes(raw_email)
-        details = get_message_html(msg)
+    # print("\nFinal List of Matching Emails:")
+    # for num in id_list:
+    #     status, data = mail.fetch(num, '(BODY.PEEK[])')
+    #     raw_email = data[0][1]
+    #     msg = email.message_from_bytes(raw_email)
+    #     details = get_message_html(msg)
         
-        if details:
-            subject = details['subject']
-            from_email = details['from']
-            if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
-                print(f"Email ID: {message_id} - Subject: {subject} - From: {from_email}")
+    #     if details:
+    #         subject = details['subject']
+    #         from_email = details['from']
+    #         if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
+    #             print(f"Email ID: {message_id} - Subject: {subject} - From: {from_email}")
 
     mail.logout()
     send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
