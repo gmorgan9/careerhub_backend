@@ -14,28 +14,24 @@ load_dotenv()
 
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
 
+import chardet
+
 def get_message_html(msg, message_id):
     for part in msg.walk():
         if part.get_content_type() == 'text/html':
             payload = part.get_payload(decode=True)
-            
-            # Define a list of encodings to try
-            encodings_to_try = ['Windows-1254', 'utf-8', 'ISO-8859-1']
-            html_body = None
-            
-            # Try decoding with each encoding in the list
-            for encoding in encodings_to_try:
-                try:
-                    html_body = payload.decode(encoding)
-                    break  # Exit loop if decoding is successful
-                except (UnicodeDecodeError, TypeError) as e:
-                    print(f"Encoding error with encoding '{encoding}': {e}")
-                    # Continue to the next encoding
 
-            # If all specified encodings fail, use 'utf-8' with replacement characters
-            if html_body is None:
+            # Detect encoding using chardet
+            detected_encoding = chardet.detect(payload).get('encoding', 'utf-8')
+
+            try:
+                # Attempt to decode using the detected encoding
+                html_body = payload.decode(detected_encoding)
+            except (UnicodeDecodeError, TypeError) as e:
+                # If decoding fails, fallback to 'utf-8' with 'replace' strategy
+                print(f"Encoding error with detected encoding '{detected_encoding}': {e}")
                 html_body = payload.decode('utf-8', errors='replace')
-                print("Using 'utf-8' with replacement characters for decoding.")
+                print("Fallback to 'utf-8' with replacement characters for decoding.")
 
             return {
                 'subject': msg['subject'],
