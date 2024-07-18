@@ -181,13 +181,20 @@ def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
         print(f"Failed to send Slack summary: {response.text}")
 
 def move_email_to_folder(mail, message_id, destination_folder):
+    # Ensure folder exists or create it
+    mail.create(destination_folder)
+    
+    # Copy the email to the destination folder
     result = mail.copy(message_id, destination_folder)
+    
+    # Check if the copy operation was successful
     if result[0] == 'OK':
+        # Mark the original email for deletion
         mail.store(message_id, '+FLAGS', '\\Deleted')
         mail.expunge()
         print(f"Email {message_id} moved to {destination_folder}")
     else:
-        print(f"Failed to move email {message_id}")
+        print(f"Failed to move email {message_id} to {destination_folder}: {result}")
 
 def main():
     load_dotenv()
@@ -202,9 +209,13 @@ def main():
     if not id_list:
         print('No new messages.')
         return
+    
     emails_checked = 0
     emails_inserted = 0
     inserted_jobs = []
+    
+    message_ids = []  # List to hold message IDs for moving after checking
+
     for num in id_list:
         status, data = mail.fetch(num, '(BODY.PEEK[])')
         raw_email = data[0][1]
@@ -221,24 +232,11 @@ def main():
                 if insert_job_details(job_details, message_id):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-    for num in id_list:
-        status, data = mail.fetch(num, '(BODY.PEEK[])')
-        raw_email = data[0][1]
-        msg = email.message_from_bytes(raw_email)
-        details = get_message_html(msg, num.decode())
-        if details:
-            message_id = details['message_id']
-            with pymysql.connect(
-                host=os.getenv('DB_HOST'),
-                user=os.getenv('DB_USER'),
-                password=os.getenv('DB_PASS'),
-                db=os.getenv('DB_NAME'),
-                charset='utf8mb4',
-                cursorclass=pymysql.cursors.DictCursor
-            ) as connection:
-                with connection.cursor() as cursor:
-                    if job_exists(cursor, message_id):
-                        move_email_to_folder(mail, num.decode(), "Job Applications")
+                    message_ids.append(num.decode())  # Add the message ID for later moving
+    
+    for message_id in message_ids:
+        move_email_to_folder(mail, message_id, "Job Applications")
+
     mail.logout()
     send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
 
