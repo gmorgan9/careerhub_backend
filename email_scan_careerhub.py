@@ -180,11 +180,16 @@ def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
         print(f"Failed to send Slack summary: {response.text}")
 
 def move_email(mail, email_id, folder_name):
-    # Ensure the destination folder exists
+    # Fetch the list of available folders
     status, folders = mail.list()
-    folder_names = [folder.decode().split(' "/" ')[-1] for folder in folders]
+    folder_names = [folder.decode().split(' "/" ')[-1].strip() for folder in folders]
     
-    if folder_name not in folder_names:
+    print("Available folders:", folder_names)  # Debug line to check available folders
+
+    # Normalize folder names to match case-insensitively
+    folder_names_lower = [name.lower() for name in folder_names]
+    
+    if folder_name.lower() not in folder_names_lower:
         raise ValueError(f"Folder '{folder_name}' does not exist. Please create it first.")
 
     # Move the email to the new folder
@@ -196,8 +201,6 @@ def move_email(mail, email_id, folder_name):
     
     # Expunge the deleted emails
     mail.expunge()
-
-
 
 def main():
     load_dotenv()
