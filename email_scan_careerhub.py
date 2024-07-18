@@ -17,7 +17,7 @@ SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
 
 def get_message_html(msg):
     # Extract Message-ID
-    message_id = msg.get('Message-ID', '')
+    # message_id = msg.get('Message-ID', '')
     
     for part in msg.walk():
         if part.get_content_type() == 'text/html':
@@ -28,7 +28,7 @@ def get_message_html(msg):
                 'subject': msg.get('subject', ''),
                 'from': msg.get('from', ''),
                 'html_body': html_body,
-                'message_id': message_id,
+                'message_id': msg.get('Message-ID')
             }
     return None
 
