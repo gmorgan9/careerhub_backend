@@ -202,62 +202,61 @@ def main():
     load_dotenv()
     email_user = os.getenv('EMAIL_USER')
     email_pass = os.getenv('EMAIL_PASS')
+    mail = imaplib.IMAP4_SSL('imap.gmail.com')
+    mail.login(email_user, email_pass)
+    mail.select('inbox')
 
-    try:
-        mail = imaplib.IMAP4_SSL('imap.gmail.com')
-        mail.login(email_user, email_pass)
+    status, data = mail.search(None, 'ALL')
+    if status != 'OK':
+        print(f"Error searching emails: {status}")
+        return
+    
+    mail_ids = data[0].split()
+    if not mail_ids:
+        print('No new messages.')
+        return
+    
+    emails_checked = 0
+    emails_inserted = 0
+    inserted_jobs = []
 
-        # Select the "Job Applications" folder
-        mail.select('"Job Applications"')
+    for num in mail_ids:
+        try:
+            # Fetch the email
+            status, data = mail.fetch(num, '(BODY.PEEK[])')
+            if status != 'OK':
+                print(f"Error fetching email {num}: {status}")
+                continue
 
-        # Search for all emails in the selected folder
-        status, data = mail.search(None, 'ALL')
-        if status != 'OK':
-            print(f"Error searching emails: {status}")
-            return
+            raw_email = data[0][1]
+            if raw_email is None:
+                print(f"No data returned for email {num}")
+                continue
 
-        mail_ids = data[0].split()
-        if not mail_ids:
-            print('No new messages in "Job Applications".')
-            return
+            # Process the email
+            msg = email.message_from_bytes(raw_email)
+            details = get_message_html(msg, num.decode())
+            if details:
+                emails_checked += 1
+                subject = details['subject']
+                from_email = details['from']
+                html_body = details['html_body']
+                message_id = details['message_id']
+                if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
+                    job_details = extract_job_details_from_html(html_body)
+                    if insert_job_details(job_details, message_id):
+                        emails_inserted += 1
+                        inserted_jobs.append(job_details)
 
-        emails_checked = 0
-        emails_inserted = 0
-        inserted_jobs = []
+            # Mark the email as read (remove the \Seen flag)
+            mail.store(num, '+FLAGS', '\\Seen')
+        
+        except Exception as e:
+            print(f"Error processing email {num}: {e}")
 
-        for num in mail_ids:
-            try:
-                status, data = mail.fetch(num, '(BODY.PEEK[])')
-                if status != 'OK':
-                    print(f"Error fetching email {num}: {status}")
-                    continue
+    mail.logout()
+    send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
 
-                raw_email = data[0][1] if data[0] else None
-                if raw_email is None:
-                    print(f"No data returned for email {num}")
-                    continue
-
-                msg = email.message_from_bytes(raw_email)
-                details = get_message_html(msg, num.decode())
-                if details:
-                    emails_checked += 1
-                    subject = details['subject']
-                    from_email = details['from']
-                    html_body = details['html_body']
-                    message_id = details['message_id']
-                    if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
-                        job_details = extract_job_details_from_html(html_body)
-                        if insert_job_details(job_details, message_id):
-                            emails_inserted += 1
-                            inserted_jobs.append(job_details)
-            except Exception as e:
-                print(f"Error processing email {num}: {e}")
-
-        mail.logout()
-        send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
 
 if __name__ == '__main__':
     main()
