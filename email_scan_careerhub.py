@@ -183,36 +183,62 @@ def main():
     load_dotenv()
     email_user = os.getenv('EMAIL_USER')
     email_pass = os.getenv('EMAIL_PASS')
-    mail = imaplib.IMAP4_SSL('imap.gmail.com')
-    mail.login(email_user, email_pass)
-    mail.select('inbox')
-    status, data = mail.search(None, 'ALL')
-    mail_ids = data[0]
-    id_list = mail_ids.split()
-    if not id_list:
-        print('No new messages.')
-        return
-    emails_checked = 0
-    emails_inserted = 0
-    inserted_jobs = []
-    for num in id_list:
-        status, data = mail.fetch(num, '(BODY.PEEK[])')
-        raw_email = data[0][1]
-        msg = email.message_from_bytes(raw_email)
-        details = get_message_html(msg, num.decode())
-        if details:
-            emails_checked += 1
-            subject = details['subject']
-            from_email = details['from']
-            html_body = details['html_body']
-            message_id = details['message_id']
-            if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
-                job_details = extract_job_details_from_html(html_body)
-                if insert_job_details(job_details, message_id):
-                    emails_inserted += 1
-                    inserted_jobs.append(job_details)
-    mail.logout()
-    send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
+
+    try:
+        mail = imaplib.IMAP4_SSL('imap.gmail.com')
+        mail.login(email_user, email_pass)
+
+        # Select the "Job Applications" folder
+        mail.select('"Job Applications"')
+
+        # Search for all emails in the selected folder
+        status, data = mail.search(None, 'ALL')
+        if status != 'OK':
+            print(f"Error searching emails: {status}")
+            return
+
+        mail_ids = data[0].split()
+        if not mail_ids:
+            print('No new messages in "Job Applications".')
+            return
+
+        emails_checked = 0
+        emails_inserted = 0
+        inserted_jobs = []
+
+        for num in mail_ids:
+            try:
+                status, data = mail.fetch(num, '(BODY.PEEK[])')
+                if status != 'OK':
+                    print(f"Error fetching email {num}: {status}")
+                    continue
+
+                raw_email = data[0][1] if data[0] else None
+                if raw_email is None:
+                    print(f"No data returned for email {num}")
+                    continue
+
+                msg = email.message_from_bytes(raw_email)
+                details = get_message_html(msg, num.decode())
+                if details:
+                    emails_checked += 1
+                    subject = details['subject']
+                    from_email = details['from']
+                    html_body = details['html_body']
+                    message_id = details['message_id']
+                    if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
+                        job_details = extract_job_details_from_html(html_body)
+                        if insert_job_details(job_details, message_id):
+                            emails_inserted += 1
+                            inserted_jobs.append(job_details)
+            except Exception as e:
+                print(f"Error processing email {num}: {e}")
+
+        mail.logout()
+        send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 if __name__ == '__main__':
     main()
