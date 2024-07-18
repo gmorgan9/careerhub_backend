@@ -273,11 +273,13 @@ def main():
             # print(f"Message-ID: {message_id}")
 
             if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
+                print(f"Email matches criteria. Inserting job details...")
                 job_details = extract_job_details_from_html(html_body)
                 if insert_job_details(job_details, message_id):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-                    message_ids.append(num.decode())  # Add numeric ID for moving
+                    message_ids.append(message_id)  # Add the message ID for later moving
+                    print(f"Job inserted and message ID added: {message_id}")
     
     # Print the message IDs before moving
     print("\nMessage IDs to move:")
