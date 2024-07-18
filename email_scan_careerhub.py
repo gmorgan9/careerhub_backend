@@ -14,23 +14,18 @@ load_dotenv()
 
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
 
-
-def get_message_html(msg):
-    # Extract Message-ID
-    # message_id = msg.get('Message-ID', '')
-    
+def get_message_html(msg, message_id):
     for part in msg.walk():
         if part.get_content_type() == 'text/html':
             payload = part.get_payload(decode=True)
             encoding = chardet.detect(payload)['encoding']
             html_body = payload.decode(encoding)
             return {
-                'subject': msg.get('subject', ''),
-                'from': msg.get('from', ''),
+                'subject': msg['subject'],
+                'from': msg['from'],
                 'html_body': html_body,
-                'message_id': msg.get('Message-ID')
+                'message_id': message_id,
             }
-    return None
 
 def extract_job_details_from_html(html_body):
     soup = BeautifulSoup(html_body, 'html.parser')
@@ -80,7 +75,7 @@ def job_exists(cursor, message_id):
     cursor.execute("SELECT email_message_id FROM jobs WHERE email_message_id = %s", (message_id,))
     return cursor.fetchone() is not None
 
-def insert_job_details(job_details, message_id):
+def insert_job_details(job_details, message_id, mail, email_id):
     connection = pymysql.connect(
         host=os.getenv('DB_HOST'),
         user=os.getenv('DB_USER'),
@@ -115,11 +110,13 @@ def insert_job_details(job_details, message_id):
                 ))
                 connection.commit()
                 inserted = True
-            # Removed the else block containing the print statement
+                # Move the email to "Job Applications" folder after insertion
+                move_email(mail, email_id, 'Job Applications')
     finally:
         connection.close()
     
     return inserted
+
 
 
 def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
@@ -184,38 +181,15 @@ def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
     if response.status_code != 200:
         print(f"Failed to send Slack summary: {response.text}")
 
-def move_email_to_folder(mail, num, destination_folder):
-    # Select the folder to move the email from
-    mail.select('inbox')
-
-    # Ensure the destination folder exists
-    try:
-        # Check if the folder exists
-        status, folders = mail.list()
-        folder_exists = any(folder.decode().endswith(destination_folder) for folder in folders)
-        
-        if not folder_exists:
-            # Create the folder if it does not exist
-            result = mail.create(destination_folder)
-            if result[0] != 'OK':
-                print(f"Failed to create folder '{destination_folder}': {result}")
-                return
-        else:
-            print(f"Folder '{destination_folder}' already exists.")
-        
-        # Copy the email to the destination folder using numeric ID
-        result = mail.copy(num, destination_folder)
-        
-        if result[0] == 'OK':
-            # Mark the original email for deletion
-            mail.store(num, '+FLAGS', '\\Deleted')
-            mail.expunge()
-            print(f"Email {num.decode()} moved to {destination_folder}")
-        else:
-            print(f"Failed to move email {num.decode()} to {destination_folder}: {result}")
-    
-    except Exception as e:
-        print(f"An error occurred while moving email {num.decode()}: {str(e)}")
+def move_email(mail, email_id, folder_name):
+    # Select the destination folder
+    mail.select(folder_name)
+    # Copy the email to the new folder
+    mail.copy(email_id, folder_name)
+    # Mark the original email as deleted
+    mail.store(email_id, '+FLAGS', '\\Deleted')
+    # Expunge the deleted emails
+    mail.expunge()
 
 
 def main():
@@ -225,59 +199,31 @@ def main():
     mail = imaplib.IMAP4_SSL('imap.gmail.com')
     mail.login(email_user, email_pass)
     mail.select('inbox')
-    
-    # Search for all emails
     status, data = mail.search(None, 'ALL')
     mail_ids = data[0]
     id_list = mail_ids.split()
-    
     if not id_list:
         print('No new messages.')
         return
-    
     emails_checked = 0
     emails_inserted = 0
     inserted_jobs = []
-    
-    message_ids = set()  # Use a set to ensure unique message IDs
-
     for num in id_list:
         status, data = mail.fetch(num, '(BODY.PEEK[])')
         raw_email = data[0][1]
         msg = email.message_from_bytes(raw_email)
-        details = get_message_html(msg)
-        
+        details = get_message_html(msg, num.decode())
         if details:
             emails_checked += 1
             subject = details['subject']
             from_email = details['from']
             html_body = details['html_body']
             message_id = details['message_id']
-            
-            # Print the message ID and subject for debugging
-            # print(f"Checking email ID: {num.decode()}")
-            # print(f"Subject: {subject}")
-            # print(f"From: {from_email}")
-            # print(f"Message-ID: {message_id}")
-
             if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
-                print(f"Email matches criteria. Inserting job details...")
                 job_details = extract_job_details_from_html(html_body)
-                if insert_job_details(job_details, message_id):
+                if insert_job_details(job_details, message_id, mail, num.decode()):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-                    message_ids.add(num.decode())  # Add the numeric ID for moving
-                    print(f"Job inserted and message ID added: {num.decode()}")
-    
-    # Print the message IDs before moving
-    print("\nMessage IDs to move:")
-    for num in message_ids:
-        print(num)
-    
-    # Move the emails to the "Job Applications" folder
-    for num in message_ids:
-        move_email_to_folder(mail, num, "Job Applications")
-
     mail.logout()
     send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
 
