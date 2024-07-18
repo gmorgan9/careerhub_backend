@@ -225,6 +225,7 @@ def main():
     mail.login(email_user, email_pass)
     mail.select('inbox')
     
+    # Search for all emails
     status, data = mail.search(None, 'ALL')
     mail_ids = data[0]
     id_list = mail_ids.split()
@@ -237,7 +238,7 @@ def main():
     emails_inserted = 0
     inserted_jobs = []
     
-    message_ids = []  # List to hold message IDs for moving after checking
+    message_ids = []  # List to hold numeric message IDs for moving after checking
 
     for num in id_list:
         status, data = mail.fetch(num, '(BODY.PEEK[])')
@@ -246,21 +247,23 @@ def main():
         details = get_message_html(msg)
         
         if details:
-            # Print the message ID and subject
-            # print(f"Checking email ID: {num.decode()}")
-            # print(f"Subject: {details['subject']}")
-            
-            emails_checked += 1
             subject = details['subject']
             from_email = details['from']
             html_body = details['html_body']
-            message_id = details['message_id']  # Use the message ID returned from the function
+            message_id = details['message_id']
+            
+            # Print the message ID and subject for debugging
+            print(f"Checking email ID: {num.decode()}")
+            print(f"Subject: {subject}")
+            print(f"From: {from_email}")
+            print(f"Message-ID: {message_id}")
+
             if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
                 job_details = extract_job_details_from_html(html_body)
                 if insert_job_details(job_details, message_id):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-                    message_ids.append(num.decode())  # Use numeric ID for later moving
+                    message_ids.append(num.decode())  # Add numeric ID for moving
     
     # Print the message IDs before moving
     print("Message IDs to move:")
@@ -269,6 +272,20 @@ def main():
 
     for message_id in message_ids:
         move_email_to_folder(mail, message_id, "Job Applications")
+
+    # Print all matching emails for verification
+    print("\nFinal List of Matching Emails:")
+    for num in id_list:
+        status, data = mail.fetch(num, '(BODY.PEEK[])')
+        raw_email = data[0][1]
+        msg = email.message_from_bytes(raw_email)
+        details = get_message_html(msg)
+        
+        if details:
+            subject = details['subject']
+            from_email = details['from']
+            if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
+                print(f"Email ID: {num.decode()} - Subject: {subject} - From: {from_email}")
 
     mail.logout()
     send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
