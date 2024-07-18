@@ -19,19 +19,24 @@ def get_message_html(msg, message_id):
         if part.get_content_type() == 'text/html':
             payload = part.get_payload(decode=True)
 
-            # Detect encoding using chardet
-            detected_encoding = chardet.detect(payload).get('encoding', 'utf-8')
-            print(f"Detected encoding: {detected_encoding}")
-
+            # Default to UTF-8 based on Content-Type
+            encoding = 'utf-8'
             try:
-                # Attempt to decode using the detected encoding
-                html_body = payload.decode(detected_encoding)
+                # Attempt to decode using UTF-8
+                html_body = payload.decode(encoding)
             except (UnicodeDecodeError, TypeError) as e:
-                # If decoding fails, fallback to 'utf-8' with 'replace' strategy
-                print(f"Encoding error with detected encoding '{detected_encoding}': {e}")
+                # Handle errors gracefully and print a sample for debugging
+                print(f"Encoding error with UTF-8: {e}")
                 print(f"Payload sample (first 1000 bytes): {payload[:1000]}")
-                html_body = payload.decode('utf-8', errors='replace')
-                print("Fallback to 'utf-8' with replacement characters for decoding.")
+                # Fallback to using chardet for encoding detection
+                detected_encoding = chardet.detect(payload).get('encoding', 'utf-8')
+                print(f"Detected encoding: {detected_encoding}")
+                try:
+                    html_body = payload.decode(detected_encoding, errors='replace')
+                except (UnicodeDecodeError, TypeError) as fallback_error:
+                    print(f"Fallback encoding error: {fallback_error}")
+                    html_body = payload.decode('utf-8', errors='replace')
+                    print("Fallback to 'utf-8' with replacement characters for decoding.")
 
             return {
                 'subject': msg['subject'],
