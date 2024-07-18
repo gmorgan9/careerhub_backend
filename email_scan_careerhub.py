@@ -18,19 +18,24 @@ def get_message_html(msg, message_id):
     for part in msg.walk():
         if part.get_content_type() == 'text/html':
             payload = part.get_payload(decode=True)
-            encoding = chardet.detect(payload)['encoding']
+            detected_encoding = chardet.detect(payload)['encoding']
+            if detected_encoding is None:
+                detected_encoding = 'utf-8'  # Default if detection fails
+            
             try:
-                html_body = payload.decode(encoding)
+                html_body = payload.decode(detected_encoding)
             except (UnicodeDecodeError, TypeError) as e:
-                print(f"Encoding error: {e}. Defaulting to 'utf-8'.")
+                print(f"Encoding error with detected encoding '{detected_encoding}': {e}. Defaulting to 'utf-8'.")
                 # Fallback to utf-8 if detection fails
                 html_body = payload.decode('utf-8', errors='replace')
+            
             return {
                 'subject': msg['subject'],
                 'from': msg['from'],
                 'html_body': html_body,
                 'message_id': message_id,
             }
+
 
 
 def extract_job_details_from_html(html_body):
