@@ -180,6 +180,16 @@ def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
     if response.status_code != 200:
         print(f"Failed to send Slack summary: {response.text}")
 
+def move_email_to_folder(mail, message_id, destination_folder):
+    result = mail.copy(message_id, destination_folder)
+    if result[0] == 'OK':
+        mail.store(message_id, '+FLAGS', '\\Deleted')
+        mail.expunge()
+        print(f"Email {message_id} moved to {destination_folder}")
+    else:
+        print(f"Failed to move email {message_id}")
+
+
 def main():
     load_dotenv()
     email_user = os.getenv('EMAIL_USER')
@@ -193,12 +203,6 @@ def main():
     if not id_list:
         print('No new messages.')
         return
-    
-    # Debug: list all folders
-    status, folders = mail.list()
-    for folder in folders:
-        print(folder.decode())
-
     emails_checked = 0
     emails_inserted = 0
     inserted_jobs = []
@@ -218,11 +222,7 @@ def main():
                 if insert_job_details(job_details, message_id):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-                    # Move the email to "Job Applications" folder
-                    result = mail.copy(num, 'Job Applications')
-                    if result[0] == 'OK':
-                        mail.store(num, '+FLAGS', '\\Deleted')
-    mail.expunge()  # Permanently remove emails marked for deletion
+                    move_email_to_folder(mail, num.decode(), "Job Applications")
     mail.logout()
     send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
 
