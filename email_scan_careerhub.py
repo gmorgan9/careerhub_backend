@@ -247,6 +247,7 @@ def main():
         details = get_message_html(msg)
         
         if details:
+            emails_checked += 1
             subject = details['subject']
             from_email = details['from']
             html_body = details['html_body']
