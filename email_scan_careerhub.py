@@ -253,10 +253,10 @@ def main():
             message_id = details['message_id']
             
             # Print the message ID and subject for debugging
-            print(f"Checking email ID: {num.decode()}")
-            print(f"Subject: {subject}")
-            print(f"From: {from_email}")
-            print(f"Message-ID: {message_id}")
+            # print(f"Checking email ID: {num.decode()}")
+            # print(f"Subject: {subject}")
+            # print(f"From: {from_email}")
+            # print(f"Message-ID: {message_id}")
 
             if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
                 job_details = extract_job_details_from_html(html_body)
@@ -285,7 +285,7 @@ def main():
             subject = details['subject']
             from_email = details['from']
             if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
-                print(f"Email ID: {num.decode()} - Subject: {subject} - From: {from_email}")
+                print(f"Email ID: {message_id} - Subject: {subject} - From: {from_email}")
 
     mail.logout()
     send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
