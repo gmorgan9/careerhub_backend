@@ -20,13 +20,14 @@ def get_message_html(msg, message_id):
             payload = part.get_payload(decode=True)
             detected_encoding = chardet.detect(payload)['encoding']
             if detected_encoding is None:
-                detected_encoding = 'utf-8'  # Default if detection fails
+                detected_encoding = 'utf-8'
             
             try:
                 html_body = payload.decode(detected_encoding)
             except (UnicodeDecodeError, TypeError) as e:
-                print(f"Encoding error with detected encoding '{detected_encoding}': {e}. Defaulting to 'utf-8'.")
-                # Fallback to utf-8 if detection fails
+                print(f"Encoding error with detected encoding '{detected_encoding}': {e}")
+                print(f"Payload sample (first 1000 bytes): {payload[:1000]}")
+                # Fallback to 'utf-8' with replacement for unrecognized characters
                 html_body = payload.decode('utf-8', errors='replace')
             
             return {
