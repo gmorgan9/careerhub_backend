@@ -184,7 +184,7 @@ def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
     if response.status_code != 200:
         print(f"Failed to send Slack summary: {response.text}")
 
-def move_email_to_folder(mail, message_id, destination_folder):
+def move_email_to_folder(mail, num, destination_folder):
     # Select the folder to move the email from
     mail.select('inbox')
 
@@ -203,32 +203,19 @@ def move_email_to_folder(mail, message_id, destination_folder):
         else:
             print(f"Folder '{destination_folder}' already exists.")
         
-        # Search for the email using the message_id
-        status, data = mail.search(None, f'(HEADER Message-ID "{message_id}")')
-        if status != 'OK':
-            print(f"Failed to search for email with Message-ID {message_id}")
-            return
+        # Copy the email to the destination folder using numeric ID
+        result = mail.copy(num, destination_folder)
         
-        email_ids = data[0].split()
-        if not email_ids:
-            print(f"No email found with Message-ID {message_id}")
-            return
-        
-        # Move the email to the destination folder using numeric ID
-        for email_id in email_ids:
-            result = mail.copy(email_id, destination_folder)
-            
-            if result[0] == 'OK':
-                # Mark the original email for deletion
-                mail.store(email_id, '+FLAGS', '\\Deleted')
-                mail.expunge()
-                print(f"Email {email_id.decode()} moved to {destination_folder}")
-            else:
-                print(f"Failed to move email {email_id.decode()} to {destination_folder}: {result}")
+        if result[0] == 'OK':
+            # Mark the original email for deletion
+            mail.store(num, '+FLAGS', '\\Deleted')
+            mail.expunge()
+            print(f"Email {num.decode()} moved to {destination_folder}")
+        else:
+            print(f"Failed to move email {num.decode()} to {destination_folder}: {result}")
     
     except Exception as e:
-        print(f"An error occurred while moving email with Message-ID {message_id}: {str(e)}")
-
+        print(f"An error occurred while moving email {num.decode()}: {str(e)}")
 
 def main():
     load_dotenv()
@@ -267,10 +254,10 @@ def main():
             message_id = details['message_id']
             
             # Print the message ID and subject for debugging
-            print(f"Checking email ID: {num.decode()}")
-            print(f"Subject: {subject}")
-            print(f"From: {from_email}")
-            print(f"Message-ID: {message_id}")
+            # print(f"Checking email ID: {num.decode()}")
+            # print(f"Subject: {subject}")
+            # print(f"From: {from_email}")
+            # print(f"Message-ID: {message_id}")
 
             if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
                 print(f"Email matches criteria. Inserting job details...")
@@ -278,17 +265,17 @@ def main():
                 if insert_job_details(job_details, message_id):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-                    message_ids.add(message_id)  # Add the message ID for later moving
-                    print(f"Job inserted and message ID added: {message_id}")
+                    message_ids.add(num.decode())  # Use numeric ID for moving
+                    print(f"Job inserted and message ID added: {num.decode()}")
     
     # Print the message IDs before moving
     print("\nMessage IDs to move:")
-    for message_id in message_ids:
-        print(message_id)
+    for num in message_ids:
+        print(num)
     
     # Move the emails to the "Job Applications" folder
-    for message_id in message_ids:
-        move_email_to_folder(mail, message_id, "Job Applications")
+    for num in message_ids:
+        move_email_to_folder(mail, num, "Job Applications")
 
     mail.logout()
     send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
