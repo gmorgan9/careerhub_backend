@@ -217,6 +217,7 @@ def move_email_to_folder(mail, num, destination_folder):
     except Exception as e:
         print(f"An error occurred while moving email {num.decode()}: {str(e)}")
 
+
 def main():
     load_dotenv()
     email_user = os.getenv('EMAIL_USER')
@@ -265,7 +266,7 @@ def main():
                 if insert_job_details(job_details, message_id):
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
-                    message_ids.add(num.decode())  # Use numeric ID for moving
+                    message_ids.add(num.decode())  # Add the numeric ID for moving
                     print(f"Job inserted and message ID added: {num.decode()}")
     
     # Print the message IDs before moving
