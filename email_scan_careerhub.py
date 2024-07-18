@@ -117,8 +117,6 @@ def insert_job_details(job_details, message_id, mail, email_id):
     
     return inserted
 
-
-
 def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
     message = f"Emails Scanned: {emails_checked}\nEmails inserted into the database: {emails_inserted}\n"
     job_insert = ""
@@ -182,14 +180,23 @@ def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
         print(f"Failed to send Slack summary: {response.text}")
 
 def move_email(mail, email_id, folder_name):
-    # Select the destination folder
-    mail.select(folder_name)
-    # Copy the email to the new folder
+    # Ensure the destination folder exists
+    status, folders = mail.list()
+    folder_names = [folder.decode().split(' "/" ')[-1] for folder in folders]
+    
+    if folder_name not in folder_names:
+        raise ValueError(f"Folder '{folder_name}' does not exist. Please create it first.")
+
+    # Move the email to the new folder
+    mail.select('inbox')  # Select the inbox to perform the copy operation
     mail.copy(email_id, folder_name)
+    
     # Mark the original email as deleted
     mail.store(email_id, '+FLAGS', '\\Deleted')
+    
     # Expunge the deleted emails
     mail.expunge()
+
 
 
 def main():
