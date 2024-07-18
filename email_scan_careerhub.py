@@ -37,20 +37,6 @@ def get_message_html(msg, message_id):
                 'html_body': html_body,
                 'message_id': message_id,
             }
-        
-def log_problematic_email(payload, detected_encoding):
-    # Save the payload to a file for manual inspection
-    with open('problematic_email.html', 'wb') as file:
-        file.write(payload)
-    print(f"Problematic email saved for inspection. Encoding: {detected_encoding}")
-
-# Example usage inside get_message_html
-try:
-    html_body = payload.decode(detected_encoding)
-except (UnicodeDecodeError, TypeError) as e:
-    print(f"Encoding error with detected encoding '{detected_encoding}': {e}")
-    log_problematic_email(payload, detected_encoding)
-    html_body = payload.decode('utf-8', errors='replace')
 
 
 def extract_job_details_from_html(html_body):
