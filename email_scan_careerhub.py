@@ -111,7 +111,7 @@ def insert_job_details(job_details, message_id, mail, email_id):
                 connection.commit()
                 inserted = True
                 # Move the email to "Job Applications" folder after insertion
-                move_email(mail, email_id, 'Job Applications')
+                move_email(mail, email_id, '"Job Applications"')
     finally:
         connection.close()
     
