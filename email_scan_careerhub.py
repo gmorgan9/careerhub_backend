@@ -185,7 +185,7 @@ def move_email(mail, email_id, folder_name):
     folder_names = [folder.decode().split(' "/" ')[-1].strip() for folder in folders]
     
     # Print available folders for debugging
-    print("Available folders:", folder_names)
+    # print("Available folders:", folder_names)
     
     # Add quotes around the folder name to match the listing format
     quoted_folder_name = f'"{folder_name}"'
