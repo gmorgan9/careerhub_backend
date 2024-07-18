@@ -111,7 +111,7 @@ def insert_job_details(job_details, message_id, mail, email_id):
                 connection.commit()
                 inserted = True
                 # Move the email to "Job Applications" folder after insertion
-                move_email(mail, email_id, '"Job Applications"')
+                move_email(mail, email_id, 'Job Applications')
     finally:
         connection.close()
     
@@ -184,23 +184,25 @@ def move_email(mail, email_id, folder_name):
     status, folders = mail.list()
     folder_names = [folder.decode().split(' "/" ')[-1].strip() for folder in folders]
     
-    print("Available folders:", folder_names)  # Debug line to check available folders
-
-    # Normalize folder names to match case-insensitively
-    folder_names_lower = [name.lower() for name in folder_names]
+    # Print available folders for debugging
+    print("Available folders:", folder_names)
     
-    if folder_name.lower() not in folder_names_lower:
+    # Add quotes around the folder name to match the listing format
+    quoted_folder_name = f'"{folder_name}"'
+
+    if quoted_folder_name not in folder_names:
         raise ValueError(f"Folder '{folder_name}' does not exist. Please create it first.")
 
     # Move the email to the new folder
     mail.select('inbox')  # Select the inbox to perform the copy operation
-    mail.copy(email_id, folder_name)
+    mail.copy(email_id, quoted_folder_name)
     
     # Mark the original email as deleted
     mail.store(email_id, '+FLAGS', '\\Deleted')
     
     # Expunge the deleted emails
     mail.expunge()
+
 
 def main():
     load_dotenv()
