@@ -193,6 +193,12 @@ def main():
     if not id_list:
         print('No new messages.')
         return
+    
+    # Debug: list all folders
+    status, folders = mail.list()
+    for folder in folders:
+        print(folder.decode())
+
     emails_checked = 0
     emails_inserted = 0
     inserted_jobs = []
@@ -213,8 +219,9 @@ def main():
                     emails_inserted += 1
                     inserted_jobs.append(job_details)
                     # Move the email to "Job Applications" folder
-                    mail.copy(num, "Job Applications")
-                    mail.store(num, '+FLAGS', '\\Deleted')
+                    result = mail.copy(num, '"Job Applications"')
+                    if result[0] == 'OK':
+                        mail.store(num, '+FLAGS', '\\Deleted')
     mail.expunge()  # Permanently remove emails marked for deletion
     mail.logout()
     send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
