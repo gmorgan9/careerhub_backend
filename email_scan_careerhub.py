@@ -19,24 +19,34 @@ def get_message_html(msg, message_id):
         if part.get_content_type() == 'text/html':
             payload = part.get_payload(decode=True)
             detected_encoding = chardet.detect(payload)['encoding']
-            
-            # Default to utf-8 if detected encoding is None or if there's an encoding issue
-            if detected_encoding is None:
-                detected_encoding = 'utf-8'
-            
-            try:
-                html_body = payload.decode(detected_encoding)
-            except (UnicodeDecodeError, TypeError) as e:
-                print(f"Encoding error with detected encoding '{detected_encoding}': {e}")
-                # Fallback to 'utf-8' with replacement for unrecognized characters
+
+            # Define a list of encodings to try
+            encodings_to_try = [detected_encoding, 'utf-8', 'ISO-8859-1', 'Windows-1254']
+            html_body = None
+
+            for encoding in encodings_to_try:
+                try:
+                    if encoding:
+                        html_body = payload.decode(encoding)
+                    else:
+                        html_body = payload.decode('utf-8')
+                    break  # Exit loop if decoding is successful
+                except (UnicodeDecodeError, TypeError) as e:
+                    print(f"Encoding error with encoding '{encoding}': {e}")
+                    # Log problematic email if necessary
+                    # log_problematic_email(payload, encoding)
+
+            if html_body is None:
+                # As a last resort, default to utf-8 with replacement
                 html_body = payload.decode('utf-8', errors='replace')
-            
+
             return {
                 'subject': msg['subject'],
                 'from': msg['from'],
                 'html_body': html_body,
                 'message_id': message_id,
             }
+
 
 
 def extract_job_details_from_html(html_body):
