@@ -14,11 +14,7 @@ load_dotenv()
 
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
 
-def get_message_html(msg, email_id):
-    message_id = msg.get('Message-ID')  # Extract the Message-ID from email headers
-    if message_id is None:
-        message_id = email_id  # Fallback to the IMAP ID if Message-ID is not found
-
+def get_message_html(msg, message_id):
     for part in msg.walk():
         if part.get_content_type() == 'text/html':
             payload = part.get_payload(decode=True)
@@ -30,8 +26,6 @@ def get_message_html(msg, email_id):
                 'html_body': html_body,
                 'message_id': message_id,
             }
-    return None
-
 
 def extract_job_details_from_html(html_body):
     soup = BeautifulSoup(html_body, 'html.parser')
@@ -81,7 +75,7 @@ def job_exists(cursor, message_id):
     cursor.execute("SELECT email_message_id FROM jobs WHERE email_message_id = %s", (message_id,))
     return cursor.fetchone() is not None
 
-def insert_job_details(job_details, message_id, mail, email_id):
+def insert_job_details(job_details, message_id):
     connection = pymysql.connect(
         host=os.getenv('DB_HOST'),
         user=os.getenv('DB_USER'),
@@ -116,12 +110,12 @@ def insert_job_details(job_details, message_id, mail, email_id):
                 ))
                 connection.commit()
                 inserted = True
-                # Move the email to "Job Applications" folder after insertion
-                move_email(mail, email_id, 'Job Applications')
+            # Removed the else block containing the print statement
     finally:
         connection.close()
     
     return inserted
+
 
 def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
     message = f"Emails Scanned: {emails_checked}\nEmails inserted into the database: {emails_inserted}\n"
@@ -185,87 +179,40 @@ def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
     if response.status_code != 200:
         print(f"Failed to send Slack summary: {response.text}")
 
-def move_email(mail, email_id, folder_name):
-    # Fetch the list of available folders
-    status, folders = mail.list()
-    folder_names = [folder.decode().split(' "/" ')[-1].strip() for folder in folders]
-    
-    # Add quotes around the folder name to match the listing format
-    quoted_folder_name = f'"{folder_name}"'
-
-    if quoted_folder_name not in folder_names:
-        raise ValueError(f"Folder '{folder_name}' does not exist. Please create it first.")
-
-    # Move the email to the new folder
-    mail.select('inbox')  # Select the inbox to perform the copy operation
-    mail.copy(email_id, quoted_folder_name)
-    
-    # Mark the original email as deleted
-    mail.store(email_id, '+FLAGS', '\\Deleted')
-    
-    # Expunge the deleted emails
-    mail.expunge()
-
-
-
 def main():
     load_dotenv()
     email_user = os.getenv('EMAIL_USER')
     email_pass = os.getenv('EMAIL_PASS')
-    
-    try:
-        mail = imaplib.IMAP4_SSL('imap.gmail.com')
-        mail.login(email_user, email_pass)
-        mail.select('inbox')
-
-        # Search for all emails
-        status, data = mail.search(None, 'ALL')
-        if status != 'OK':
-            print(f"Error searching emails: {status}")
-            return
-        
-        mail_ids = data[0].split()
-        if not mail_ids:
-            print('No new messages.')
-            return
-
-        emails_checked = 0
-        emails_inserted = 0
-        inserted_jobs = []
-
-        for num in mail_ids:
-            try:
-                status, data = mail.fetch(num, '(BODY.PEEK[])')
-                if status != 'OK':
-                    print(f"Error fetching email {num}: {status}")
-                    continue
-                
-                raw_email = data[0][1] if data[0] else None
-                if raw_email is None:
-                    print(f"No data returned for email {num}")
-                    continue
-
-                msg = email.message_from_bytes(raw_email)
-                details = get_message_html(msg, num.decode())
-                if details:
-                    emails_checked += 1
-                    subject = details['subject']
-                    from_email = details['from']
-                    html_body = details['html_body']
-                    message_id = details['message_id']
-                    if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
-                        job_details = extract_job_details_from_html(html_body)
-                        if insert_job_details(job_details, message_id, mail, num.decode()):
-                            emails_inserted += 1
-                            inserted_jobs.append(job_details)
-            except Exception as e:
-                print(f"Error processing email {num}: {e}")
-
-        mail.logout()
-        send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    mail = imaplib.IMAP4_SSL('imap.gmail.com')
+    mail.login(email_user, email_pass)
+    mail.select('inbox')
+    status, data = mail.search(None, 'ALL')
+    mail_ids = data[0]
+    id_list = mail_ids.split()
+    if not id_list:
+        print('No new messages.')
+        return
+    emails_checked = 0
+    emails_inserted = 0
+    inserted_jobs = []
+    for num in id_list:
+        status, data = mail.fetch(num, '(BODY.PEEK[])')
+        raw_email = data[0][1]
+        msg = email.message_from_bytes(raw_email)
+        details = get_message_html(msg, num.decode())
+        if details:
+            emails_checked += 1
+            subject = details['subject']
+            from_email = details['from']
+            html_body = details['html_body']
+            message_id = details['message_id']
+            if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
+                job_details = extract_job_details_from_html(html_body)
+                if insert_job_details(job_details, message_id):
+                    emails_inserted += 1
+                    inserted_jobs.append(job_details)
+    mail.logout()
+    send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
 
 if __name__ == '__main__':
     main()
