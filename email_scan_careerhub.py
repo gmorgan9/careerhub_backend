@@ -283,8 +283,18 @@ def main():
     
     # Print the message IDs before moving
     print("\nMessage IDs to move:")
-    for message_id in message_ids:
+    for num in id_list:
+        status, data = mail.fetch(num, '(BODY.PEEK[])')
+        raw_email = data[0][1]
+        msg = email.message_from_bytes(raw_email)
+        details = get_message_html(msg)
         print(message_id)
+
+        if details:
+            subject = details['subject']
+            from_email = details['from']
+            if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
+                print(f"Email ID: {message_id}")
 
     # Move the emails to the "Job Applications" folder
     for message_id in message_ids:
