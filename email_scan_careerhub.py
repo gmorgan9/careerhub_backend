@@ -229,8 +229,8 @@ def main():
         details = get_message_html(msg, num.decode())
         
         # Print the message ID and subject
-        print(f"Checking email ID: {num.decode()}")
-        print(f"Subject: {details['subject']}")
+        # print(f"Checking email ID: {num.decode()}")
+        # print(f"Subject: {details['subject']}")
         
         if details:
             emails_checked += 1
