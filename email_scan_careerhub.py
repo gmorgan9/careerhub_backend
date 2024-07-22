@@ -102,7 +102,7 @@ def extract_job_details_from_indeed(html_body):
     company_location_elem = soup.find('p', style=re.compile(r'font-family:\'Noto Sans\', Helvetica, Arial, sans-serif;font-size:16px;line-height:24px;font-weight:normal;color:#2D2D2D;Margin:0;padding:0;'))
     if company_location_elem:
         company_location_text = company_location_elem.get_text(strip=True)
-        print(f"Company and location text: {company_location_text}")  # Debugging output
+        # print(f"Company and location text: {company_location_text}")  # Debugging output
 
         # Adjust regular expression to handle variations
         match = re.match(r'^(.*?)\s*[-•·]\s*(.*?)(?:, \d{5}(-\d{4})?)?$|^(.*?)(?: - (Remote))$', company_location_text)
