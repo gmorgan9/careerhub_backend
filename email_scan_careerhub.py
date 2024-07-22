@@ -58,7 +58,7 @@ def extract_job_details_from_html(html_body):
         job_title = job_title_elem.get_text(strip=True)
         job_link = job_title_elem['href']
 
-    company_location_elem = soup.find('p', class='text-system-gray-100 text-sm leading-[20px]')
+    company_location_elem = soup.find('p', class_='text-system-gray-100 text-sm leading-[20px]')
     if company_location_elem:
         company_location_text = company_location_elem.get_text(strip=True)
         match = re.match(r'^(.*?)\s*(?:&middot;|\u00B7|\u2022)\s*(.*?)\s*\((Remote)\)?\s*$', company_location_text)
