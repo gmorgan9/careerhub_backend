@@ -14,7 +14,7 @@ load_dotenv()
 
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL')
 
-def get_message_html(msg, message_id):
+def get_message_html(msg):
     for part in msg.walk():
         if part.get_content_type() == 'text/html':
             payload = part.get_payload(decode=True)
@@ -42,9 +42,7 @@ def get_message_html(msg, message_id):
                 'subject': msg['subject'],
                 'from': msg['from'],
                 'html_body': html_body,
-                'message_id': message_id,
             }
-
 
 def extract_job_details_from_html(html_body):
     soup = BeautifulSoup(html_body, 'html.parser')
@@ -90,11 +88,7 @@ def generate_unique_id(cursor):
         if not cursor.fetchone():
             return idno
 
-def job_exists(cursor, message_id):
-    cursor.execute("SELECT email_message_id FROM jobs WHERE email_message_id = %s", (message_id,))
-    return cursor.fetchone() is not None
-
-def insert_job_details(job_details, message_id):
+def insert_job_details(job_details):
     connection = pymysql.connect(
         host=os.getenv('DB_HOST'),
         user=os.getenv('DB_USER'),
@@ -107,34 +101,30 @@ def insert_job_details(job_details, message_id):
 
     try:
         with connection.cursor() as cursor:
-            if not job_exists(cursor, message_id):
-                idno = generate_unique_id(cursor)
-                status = 'Applied'
-                if job_details['is_remote']:
-                    location = job_details['location'] + ' (Remote)'
-                else:
-                    location = job_details['location']
-                sql = """
-                    INSERT INTO jobs (idno, job_title, company, location, job_link, email_message_id, status)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """
-                cursor.execute(sql, (
-                    idno,
-                    job_details['job_title'],
-                    job_details['company'],
-                    location,
-                    job_details['job_link'],
-                    message_id,
-                    status
-                ))
-                connection.commit()
-                inserted = True
-            # Removed the else block containing the print statement
+            idno = generate_unique_id(cursor)
+            status = 'Applied'
+            if job_details['is_remote']:
+                location = job_details['location'] + ' (Remote)'
+            else:
+                location = job_details['location']
+            sql = """
+                INSERT INTO jobs (idno, job_title, company, location, job_link, status)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """
+            cursor.execute(sql, (
+                idno,
+                job_details['job_title'],
+                job_details['company'],
+                location,
+                job_details['job_link'],
+                status
+            ))
+            connection.commit()
+            inserted = True
     finally:
         connection.close()
-    
-    return inserted
 
+    return inserted
 
 def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
     message = f"Emails Scanned: {emails_checked}\nEmails inserted into the database: {emails_inserted}\n"
@@ -198,73 +188,6 @@ def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
     if response.status_code != 200:
         print(f"Failed to send Slack summary: {response.text}")
 
-# def main():
-#     load_dotenv()
-#     email_user = os.getenv('EMAIL_USER')
-#     email_pass = os.getenv('EMAIL_PASS')
-
-#     try:
-#         mail = imaplib.IMAP4_SSL('imap.gmail.com')
-#         mail.login(email_user, email_pass)
-
-#         # Select the "Job Applications" folder
-#         mail.select('"Job Applications"')
-
-#         # Search for all emails in the selected folder
-#         status, data = mail.search(None, 'ALL')
-#         if status != 'OK':
-#             print(f"Error searching emails: {status}")
-#             return
-
-#         mail_ids = data[0].split()
-#         if not mail_ids:
-#             print('No new messages in "Job Applications".')
-#             return
-
-#         emails_checked = 0
-#         emails_inserted = 0
-#         inserted_jobs = []
-
-#         for num in mail_ids:
-#             try:
-#                 status, data = mail.fetch(num, '(BODY.PEEK[])')
-#                 if status != 'OK':
-#                     print(f"Error fetching email {num}: {status}")
-#                     continue
-
-#                 raw_email = data[0][1] if data[0] else None
-#                 if raw_email is None:
-#                     print(f"No data returned for email {num}")
-#                     continue
-
-#                 msg = email.message_from_bytes(raw_email)
-#                 details = get_message_html(msg, num.decode())
-#                 if details:
-#                     emails_checked += 1
-#                     subject = details['subject']
-#                     from_email = details['from']
-#                     html_body = details['html_body']
-#                     message_id = details['message_id']
-#                     if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
-#                         job_details = extract_job_details_from_html(html_body)
-#                         if insert_job_details(job_details, message_id):
-#                             emails_inserted += 1
-#                             inserted_jobs.append(job_details)
-
-#                 # Mark the email as read (remove the \Seen flag)
-#                 mail.store(num, '+FLAGS', '\\Seen')
-                
-#             except Exception as e:
-#                 print(f"Error processing email {num}: {e}")
-
-#         mail.logout()
-#         send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs)
-
-#     except Exception as e:
-#         print(f"An error occurred: {e}")
-
-# if __name__ == '__main__':
-#     main()
 def main():
     load_dotenv()
     email_user = os.getenv('EMAIL_USER')
@@ -305,16 +228,15 @@ def main():
                     continue
 
                 msg = email.message_from_bytes(raw_email)
-                details = get_message_html(msg, num.decode())
+                details = get_message_html(msg)
                 if details:
                     emails_checked += 1
                     subject = details['subject']
                     from_email = details['from']
                     html_body = details['html_body']
-                    message_id = details['message_id']
                     if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
                         job_details = extract_job_details_from_html(html_body)
-                        if insert_job_details(job_details, message_id):
+                        if insert_job_details(job_details):
                             emails_inserted += 1
                             inserted_jobs.append(job_details)
 
