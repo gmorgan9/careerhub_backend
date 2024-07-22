@@ -105,14 +105,21 @@ def extract_job_details_from_indeed(html_body):
         print(f"Company and location text: {company_location_text}")  # Debugging output
 
         # Adjust regular expression to handle variations
-        match = re.match(r'^(.*?) - (.*?)(?:, \d{5}(-\d{4})?)?$', company_location_text)
+        match = re.match(r'^(.*?)\s*[-•·]\s*(.*?)(?:, \d{5}(-\d{4})?)?$|^(.*?)(?: - (Remote))$', company_location_text)
         if match:
-            company = match.group(1).strip()
-            location = match.group(2).strip()
-            # Check if location indicates remote work
-            if location.lower() == 'remote':
-                is_remote = True
+            # Handle cases with and without zip code
+            if match.group(2):
+                company = match.group(1).strip()
+                location = match.group(2).strip()
+                if location.lower() == 'remote':
+                    is_remote = True
+                    location = 'Remote'
+                else:
+                    location = re.sub(r'\d{5}(-\d{4})?$', '', location).strip()
+            elif match.group(4) and match.group(5):
+                company = match.group(4).strip()
                 location = 'Remote'
+                is_remote = True
         else:
             print("No match found for company and location")
 
