@@ -208,7 +208,7 @@ def main():
 
         mail_ids = data[0].split()
         if not mail_ids:
-            print('No new messages in "Job Applications".')
+            # print('')
             return
 
         emails_checked = 0
