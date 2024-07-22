@@ -95,21 +95,26 @@ def extract_job_details_from_indeed(html_body):
     if job_title_elem:
         job_title = job_title_elem.get_text(strip=True)
         job_link = job_title_elem['href']
+    else:
+        print("Job title element not found")
 
     # Extract company and location
     company_location_elem = soup.find('p', style=re.compile(r'font-family:\'Noto Sans\', Helvetica, Arial, sans-serif;font-size:16px;line-height:24px;font-weight:normal;color:#2D2D2D;Margin:0;padding:0;'))
     if company_location_elem:
         company_location_text = company_location_elem.get_text(strip=True)
-        # Split on the '-' to separate company and location
-        parts = company_location_text.split(' - ', 1)
-        if len(parts) == 2:
-            company = parts[0].strip()
-            location = parts[1].strip()
-            # Remove any zip code from the location
-            location = re.sub(r'\d{5}(-\d{4})?$', '', location).strip()
+        print(f"Company and location text: {company_location_text}")  # Debugging output
+
+        # Adjust regular expression to handle variations
+        match = re.match(r'^(.*?) - (.*?)(?:, \d{5}(-\d{4})?)?$', company_location_text)
+        if match:
+            company = match.group(1).strip()
+            location = match.group(2).strip()
+            # Check if location indicates remote work
             if location.lower() == 'remote':
                 is_remote = True
                 location = 'Remote'
+        else:
+            print("No match found for company and location")
 
     return {
         'job_title': job_title,
@@ -118,6 +123,7 @@ def extract_job_details_from_indeed(html_body):
         'is_remote': is_remote,
         'job_link': job_link,
     }
+
 
 
 
