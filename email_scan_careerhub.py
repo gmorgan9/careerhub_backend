@@ -304,9 +304,9 @@ def main():
                             inserted_jobs.append(job_details)
 
                 # Mark the email as read
-                # mail.store(num, '+FLAGS', '\\Seen')
-                # # Mark the email for deletion
-                # mail.store(num, '+FLAGS', '\\Deleted')
+                mail.store(num, '+FLAGS', '\\Seen')
+                # Mark the email for deletion
+                mail.store(num, '+FLAGS', '\\Deleted')
 
             except Exception as e:
                 print(f"Error processing email {num}: {e}")
