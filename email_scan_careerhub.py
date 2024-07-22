@@ -90,20 +90,21 @@ def extract_job_details_from_indeed(html_body):
     is_remote = False
     job_link = None
 
-    # Sample selectors, might need adjustment based on the actual Indeed email format
-    job_title_elem = soup.find('a', class_='jobtitle', href=True)
+    # Extract job title and link
+    job_title_elem = soup.find('a', style=re.compile(r'color:#2d2d2d;text-decoration: underline;'), href=True)
     if job_title_elem:
         job_title = job_title_elem.get_text(strip=True)
         job_link = job_title_elem['href']
 
-    company_elem = soup.find('span', class_='company')
-    if company_elem:
-        company = company_elem.get_text(strip=True)
-
-    location_elem = soup.find('span', class_='location')
-    if location_elem:
-        location = location_elem.get_text(strip=True)
-        is_remote = 'remote' in location.lower()
+    # Extract company and location
+    company_location_elem = soup.find('p', style=re.compile(r'font-family:\'Noto Sans\', Helvetica, Arial, sans-serif;font-size:16px;line-height:24px;font-weight:normal;color:#2D2D2D;Margin:0;padding:0;'))
+    if company_location_elem:
+        company_location_text = company_location_elem.get_text(strip=True)
+        match = re.match(r'^(.*?) - (.*?)$', company_location_text)
+        if match:
+            company = match.group(1).strip()
+            location = match.group(2).strip()
+            is_remote = 'remote' in location.lower()
 
     return {
         'job_title': job_title,
@@ -112,6 +113,7 @@ def extract_job_details_from_indeed(html_body):
         'is_remote': is_remote,
         'job_link': job_link,
     }
+
 
 def generate_unique_id(cursor):
     while True:
