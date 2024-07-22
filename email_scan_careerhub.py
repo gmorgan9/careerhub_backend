@@ -302,6 +302,11 @@ def main():
                         if insert_job_details(job_details):
                             emails_inserted += 1
                             inserted_jobs.append(job_details)
+                    elif "complete your application" in subject.lower() and "indeed" in from_email.lower():
+                        job_details = extract_job_details_from_indeed(html_body)
+                        if insert_job_details(job_details):
+                            emails_inserted += 1
+                            inserted_jobs.append(job_details)
 
                 # Mark the email as read
                 mail.store(num, '+FLAGS', '\\Seen')
