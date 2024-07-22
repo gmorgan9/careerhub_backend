@@ -138,7 +138,11 @@ def insert_job_details(job_details):
             if job_details['is_remote']:
                 location = 'Remote'
             else:
-                location = job_details['location'].replace("(On-site)", "").strip()
+                location = job_details['location']
+                if location is not None:
+                    location = location.replace("(On-site)", "").strip()
+                else:
+                    location = 'Unknown'
             sql = """
                 INSERT INTO jobs (idno, job_title, company, location, job_link, status)
                 VALUES (%s, %s, %s, %s, %s, %s)
@@ -157,6 +161,7 @@ def insert_job_details(job_details):
         connection.close()
 
     return inserted
+
 
 def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
     message = f"Emails Scanned: {emails_checked}\nEmails inserted into the database: {emails_inserted}\n"
