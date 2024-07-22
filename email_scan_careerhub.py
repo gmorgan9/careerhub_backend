@@ -81,6 +81,38 @@ def extract_job_details_from_html(html_body):
         'job_link': job_link,
     }
 
+def extract_job_details_from_indeed(html_body):
+    soup = BeautifulSoup(html_body, 'html.parser')
+
+    job_title = None
+    company = None
+    location = None
+    is_remote = False
+    job_link = None
+
+    # Sample selectors, might need adjustment based on the actual Indeed email format
+    job_title_elem = soup.find('a', class_='jobtitle', href=True)
+    if job_title_elem:
+        job_title = job_title_elem.get_text(strip=True)
+        job_link = job_title_elem['href']
+
+    company_elem = soup.find('span', class_='company')
+    if company_elem:
+        company = company_elem.get_text(strip=True)
+
+    location_elem = soup.find('span', class_='location')
+    if location_elem:
+        location = location_elem.get_text(strip=True)
+        is_remote = 'remote' in location.lower()
+
+    return {
+        'job_title': job_title,
+        'company': company,
+        'location': location,
+        'is_remote': is_remote,
+        'job_link': job_link,
+    }
+
 def generate_unique_id(cursor):
     while True:
         idno = ''.join([str(random.randint(0, 9)) for _ in range(7)])
@@ -236,6 +268,11 @@ def main():
                     html_body = details['html_body']
                     if "your application was sent" in subject.lower() and "linkedin" in from_email.lower():
                         job_details = extract_job_details_from_html(html_body)
+                        if insert_job_details(job_details):
+                            emails_inserted += 1
+                            inserted_jobs.append(job_details)
+                    elif "indeed application" in subject.lower() and "indeed" in from_email.lower():
+                        job_details = extract_job_details_from_indeed(html_body)
                         if insert_job_details(job_details):
                             emails_inserted += 1
                             inserted_jobs.append(job_details)
