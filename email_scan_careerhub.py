@@ -58,7 +58,7 @@ def extract_job_details_from_html(html_body):
         job_title = job_title_elem.get_text(strip=True)
         job_link = job_title_elem['href']
 
-    company_location_elem = soup.find('p', class_='text-system-gray-100 text-sm leading-[20px]')
+    company_location_elem = soup.find('p', class='text-system-gray-100 text-sm leading-[20px]')
     if company_location_elem:
         company_location_text = company_location_elem.get_text(strip=True)
         match = re.match(r'^(.*?)\s*(?:&middot;|\u00B7|\u2022)\s*(.*?)\s*\((Remote)\)?\s*$', company_location_text)
@@ -104,9 +104,9 @@ def insert_job_details(job_details):
             idno = generate_unique_id(cursor)
             status = 'Applied'
             if job_details['is_remote']:
-                location = job_details['location'] + ' (Remote)'
+                location = 'Remote'
             else:
-                location = job_details['location']
+                location = job_details['location'].replace("(On-site)", "").strip()
             sql = """
                 INSERT INTO jobs (idno, job_title, company, location, job_link, status)
                 VALUES (%s, %s, %s, %s, %s, %s)
@@ -240,6 +240,8 @@ def main():
                             emails_inserted += 1
                             inserted_jobs.append(job_details)
 
+                # Mark the email as read
+                mail.store(num, '+FLAGS', '\\Seen')
                 # Mark the email for deletion
                 mail.store(num, '+FLAGS', '\\Deleted')
 
