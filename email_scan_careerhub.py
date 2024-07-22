@@ -100,11 +100,16 @@ def extract_job_details_from_indeed(html_body):
     company_location_elem = soup.find('p', style=re.compile(r'font-family:\'Noto Sans\', Helvetica, Arial, sans-serif;font-size:16px;line-height:24px;font-weight:normal;color:#2D2D2D;Margin:0;padding:0;'))
     if company_location_elem:
         company_location_text = company_location_elem.get_text(strip=True)
-        match = re.match(r'^(.*?) - (.*?)$', company_location_text)
-        if match:
-            company = match.group(1).strip()
-            location = match.group(2).strip()
-            is_remote = 'remote' in location.lower()
+        # Split on the '-' to separate company and location
+        parts = company_location_text.split(' - ', 1)
+        if len(parts) == 2:
+            company = parts[0].strip()
+            location = parts[1].strip()
+            # Remove any zip code from the location
+            location = re.sub(r'\d{5}(-\d{4})?$', '', location).strip()
+            if location.lower() == 'remote':
+                is_remote = True
+                location = 'Remote'
 
     return {
         'job_title': job_title,
@@ -113,6 +118,7 @@ def extract_job_details_from_indeed(html_body):
         'is_remote': is_remote,
         'job_link': job_link,
     }
+
 
 
 def generate_unique_id(cursor):
@@ -285,9 +291,9 @@ def main():
                             inserted_jobs.append(job_details)
 
                 # Mark the email as read
-                mail.store(num, '+FLAGS', '\\Seen')
-                # Mark the email for deletion
-                mail.store(num, '+FLAGS', '\\Deleted')
+                # mail.store(num, '+FLAGS', '\\Seen')
+                # # Mark the email for deletion
+                # mail.store(num, '+FLAGS', '\\Deleted')
 
             except Exception as e:
                 print(f"Error processing email {num}: {e}")
