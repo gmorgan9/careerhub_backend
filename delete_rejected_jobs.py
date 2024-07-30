@@ -26,7 +26,7 @@ def delete_rejected_entries():
             delete_query = "DELETE FROM jobs WHERE status = 'Rejected'"
             
             # Execute the query
-            cursor.execute(delete_query)
+            # cursor.execute(delete_query)
             
             # Commit the changes
             connection.commit()

@@ -234,7 +234,7 @@ def send_summary_to_slack(emails_checked, emails_inserted, inserted_jobs):
                     "text": "View All Jobs",
                     "emoji": True
                 },
-                "url": "https://careerhub.morganserver.com/console/job/all-jobs/",
+                "url": "https://jobs.morganserver.com/",
                 "action_id": "view_all_jobs_button"
             }
         ]
